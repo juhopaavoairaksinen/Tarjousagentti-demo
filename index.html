@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lempi — Tarjous- ja liidiagentti (demo)</title>
+<meta name="description" content="Staattinen demo: AI-pohjainen tarjous- ja liidiagentti kotisiivousyritykselle. Prototyyppi AI Business Developer -hakemuksen tueksi." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<style>
+/* ===== Tokens =====
+   bg-mist:  #F4FAF8   ink-deep: #0E3B38   teal: #1E8C82
+   coral:    #FF7A59   line:     #D9E6E2   ink-soft: #4A5E5B
+   display: 'Space Grotesk' / body: 'Inter' / data: 'IBM Plex Mono'
+   (Lempi Kodinhoidon omat tunnusvärit: tumma turkoosi + lämmin korosti) */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #F4FAF8;
+  color: #16201E;
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; margin: 0; }
+a { color: #1E8C82; }
+:focus-visible { outline: 2px solid #FF7A59; outline-offset: 2px; }
+button, select, input, textarea { font-family: inherit; }
+
+/* ----- Topbar ----- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding: 18px 28px; background: #0E3B38; color: #F4FAF8;
+}
+.brand { display: flex; flex-direction: column; }
+.brand-row { display: flex; align-items: center; gap: 10px; }
+.brand-mark { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 700; font-size: 22px; }
+.demo-pill {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  background: #FF7A59; color: #1A0E08; padding: 3px 9px; border-radius: 999px;
+}
+.brand-sub { font-size: 12.5px; color: #9FC9C2; margin-top: 2px; }
+.tabs { display: flex; gap: 6px; background: rgba(244,250,248,0.08); padding: 4px; border-radius: 999px; }
+.tab-btn {
+  border: none; background: transparent; color: #C9E6E1; font-weight: 500; font-size: 14px;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s;
+}
+.tab-btn.is-active { background: #F4FAF8; color: #0E3B38; }
+.tab-btn:hover:not(.is-active) { color: #F4FAF8; }
+
+/* ----- Layout ----- */
+main { max-width: 1100px; margin: 0 auto; padding: 28px 22px 64px; }
+.view { display: none; }
+.view.is-active { display: block; }
+
+.notice {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: #FFF6EC; border: 1px solid #F3DDBE; color: #6B4A1F;
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 24px; font-size: 13px;
+}
+.notice__icon { font-size: 16px; line-height: 1.3; }
+.notice b { color: #4A3110; }
+
+.steps { list-style: none; display: flex; gap: 28px; padding: 0; margin: 0 0 24px; flex-wrap: wrap; }
+.steps li { display: flex; align-items: baseline; gap: 8px; }
+.steps__num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #1E8C82; font-weight: 500; }
+.steps__label { font-size: 13.5px; color: #4A5E5B; }
+
+.console { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; align-items: start; }
+@media (max-width: 860px) { .console { grid-template-columns: 1fr; } }
+
+.card { background: #FFFFFF; border: 1px solid #D9E6E2; border-radius: 16px; padding: 22px; }
+.card__title { font-size: 16px; font-weight: 600; color: #0E3B38; margin-bottom: 16px; }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13.5px; color: #2E3F3C; }
+.field span { font-weight: 500; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="search"], select, textarea {
+  font-size: 14px; padding: 9px 11px; border: 1px solid #D9E6E2; border-radius: 9px; background: #FBFEFD; color: #16201E;
+}
+input:focus, select:focus, textarea:focus { border-color: #1E8C82; }
+textarea { resize: vertical; }
+
+.segmented { display: inline-flex; border: 1px solid #D9E6E2; border-radius: 9px; overflow: hidden; width: fit-content; }
+.segmented label { position: relative; padding: 8px 16px; font-size: 13.5px; cursor: pointer; background: #FBFEFD; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented input:checked + span { font-weight: 600; }
+.segmented label:has(input:checked) { background: #E2F2EF; color: #0E3B38; }
+.segmented label + label { border-left: 1px solid #D9E6E2; }
+
+.checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 14px; }
+.checkbox input { width: 16px; height: 16px; accent-color: #1E8C82; }
+
+.btn {
+  font-weight: 600; font-size: 14.5px; border: none; border-radius: 10px; padding: 12px 20px;
+  cursor: pointer; transition: transform .08s, opacity .15s;
+}
+.btn:active { transform: scale(0.98); }
+.btn--primary { background: #FF7A59; color: #1A0E08; width: 100%; }
+.btn--primary:hover { opacity: .92; }
+.btn--secondary { background: #E2F2EF; color: #0E3B38; }
+.btn--ghost { background: transparent; border: 1px solid #D9E6E2; color: #2E3F3C; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.form-hint { font-size: 12px; color: #6B7C78; margin-top: 6px; }
+
+.agent-panel { display: flex; flex-direction: column; gap: 16px; }
+.receipt {
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; background: #0E3B38; color: #DFF3EF;
+  border-radius: 12px; padding: 18px 20px; box-shadow: 0 14px 30px -18px rgba(14,59,56,.55); min-height: 160px;
+}
+.receipt__placeholder { color: #9FC9C2; font-family: 'Inter', sans-serif; font-size: 13.5px; }
+.receipt__line {
+  display: flex; justify-content: space-between; gap: 12px; padding: 5px 0;
+  border-bottom: 1px dashed rgba(159,201,194,.35); animation: receipt-in .25s ease both;
+}
+.receipt__line:last-child { border-bottom: none; }
+.receipt__line--total { font-weight: 600; color: #fff; padding-top: 10px; border-bottom: none; }
+.receipt__note { margin-top: 10px; font-family: 'Inter', sans-serif; font-size: 11.5px; color: #9FC9C2; }
+@keyframes receipt-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .receipt__line { animation: none; } }
+
+.agent-message__meta { font-size: 11.5px; color: #6B7C78; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.agent-message__bubble {
+  background: #FBFEFD; border: 1px solid #D9E6E2; border-radius: 12px; padding: 16px;
+  font-size: 14px; color: #1B2624; white-space: pre-wrap;
+}
+
+/* ----- Dashboard ----- */
+.section-title { font-size: 22px; color: #0E3B38; margin-bottom: 6px; }
+.section-subtitle { font-size: 13.5px; color: #4A5E5B; margin: 0 0 22px; max-width: 680px; }
+
+.metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.metric-card { background: #fff; border: 1px solid #D9E6E2; border-radius: 14px; padding: 16px 18px; }
+.metric-card__value { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #0E3B38; }
+.metric-card__label { font-size: 12px; color: #6B7C78; margin-top: 4px; }
+
+.charts-row { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 860px) { .charts-row { grid-template-columns: 1fr; } }
+.chart-card h3 { font-size: 14px; color: #0E3B38; margin-bottom: 12px; }
+.chart-card { height: 260px; }
+.chart-card canvas { max-height: 200px; }
+
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
+.filters .field { margin-bottom: 0; min-width: 150px; }
+.filters .field input { min-width: 170px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid #D9E6E2; border-radius: 14px; background: #fff; }
+.leads-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 760px; }
+.leads-table th {
+  text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: #6B7C78; padding: 14px 16px; border-bottom: 1px solid #D9E6E2;
+}
+.leads-table td { padding: 12px 16px; border-bottom: 1px solid #EDF4F2; vertical-align: middle; }
+.leads-table tr:last-child td { border-bottom: none; }
+.leads-table tbody tr:hover { background: #F8FBFA; }
+.empty-row td { text-align: center; color: #6B7C78; padding: 28px; }
+
+.badge { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; display: inline-block; }
+.badge--sent { background: #FFEFD9; color: #8A5A12; }
+.badge--followup { background: #FDE6DC; color: #B8492C; }
+.badge--won { background: #DDF2DC; color: #246B2E; }
+.badge--lost { background: #F1E4E4; color: #7A4040; }
+.badge--visit { background: #E3E9FB; color: #2F4399; }
+
+.footer { text-align: center; font-size: 12px; color: #6B7C78; padding: 24px; }
+.footer a { color: #1E8C82; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-row">
+      <span class="brand-mark">Lempi</span>
+      <span class="demo-pill">Demo</span>
+    </div>
+    <span class="brand-sub">Tarjous- ja liidiagentti — prototyyppi hakemukseen</span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Näkymät">
+    <button class="tab-btn is-active" data-view="agent" role="tab" aria-selected="true">Tarjousagentti</button>
+    <button class="tab-btn" data-view="dashboard" role="tab" aria-selected="false">Liidit &amp; mittarit</button>
+  </nav>
+</header>
+
+<main>
+
+  <div class="notice">
+    <span class="notice__icon">ℹ️</span>
+    <div>
+      <b>Tämä on staattinen, selaimessa toimiva demo.</b> Se on tarkoituksella yksi itsenäinen
+      HTML-tiedosto ilman palvelinpuolen koodia, jotta sen voi julkaista turvallisesti GitHub
+      Pagesissa — eikä koodiin näin ollen voi (eikä pidä) upottaa oikeaa API-avainta. Hinta-
+      erittely lasketaan oikealla logiikalla suoraan selaimessa, mutta agentin kirjoittama
+      tarjous-/muistutusviesti on tässä demossa <b>valmiiksi tallennettu mallipohja</b> laskettujen
+      lukujen päälle — ei live-kutsu Claude-API:in. Oikeassa tuotantoversiossa tekstin kirjoittaisi
+      kielimalli palvelimen kautta, jolloin API-avain pysyy salassa.
+    </div>
+  </div>
+
+  <!-- AGENTTINÄKYMÄ -->
+  <section id="view-agent" class="view is-active">
+    <ol class="steps">
+      <li><span class="steps__num">01</span><span class="steps__label">Asiakas kertoo kohteen tiedot</span></li>
+      <li><span class="steps__num">02</span><span class="steps__label">Agentti laskee hinnan läpinäkyvästi</span></li>
+      <li><span class="steps__num">03</span><span class="steps__label">Agentti kirjoittaa ja "lähettää" viestin</span></li>
+    </ol>
+
+    <div class="console">
+      <form id="quote-form" class="card form-card" autocomplete="off">
+        <h2 class="card__title">Asiakkaan tiedot</h2>
+
+        <div class="field-row">
+          <label class="field"><span>Nimi</span>
+            <input type="text" name="name" required placeholder="Etu- ja sukunimi" />
+          </label>
+          <label class="field"><span>Sähköposti</span>
+            <input type="email" name="email" required placeholder="nimi@esimerkki.fi" />
+          </label>
+        </div>
+
+        <label class="field"><span>Kaupunki</span>
+          <select name="city" required>
+            <option value="">Valitse…</option>
+            <option value="helsinki">Helsinki</option>
+            <option value="espoo">Espoo</option>
+            <option value="vantaa">Vantaa</option>
+            <option value="tampere">Tampere</option>
+            <option value="nokia">Nokia</option>
+            <option value="turku">Turku</option>
+            <option value="oulu">Oulu</option>
+            <option value="kuopio">Kuopio</option>
+            <option value="lahti">Lahti</option>
+            <option value="hameenlinna">Hämeenlinna</option>
+          </select>
+        </label>
+
+        <label class="field"><span>Palvelu</span>
+          <select name="service" id="service-select" required>
+            <option value="kotisiivous">Kotisiivous</option>
+            <option value="muuttosiivous">Muuttosiivous</option>
+            <option value="ikkunanpesu">Ikkunanpesu</option>
+            <option value="toimistosiivous">Toimistosiivous</option>
+          </select>
+        </label>
+
+        <div class="field" id="frequency-field">
+          <span>Siivoustyyppi</span>
+          <div class="segmented" role="radiogroup">
+            <label><input type="radio" name="frequency" value="jatkuva" checked /><span>Jatkuva</span></label>
+            <label><input type="radio" name="frequency" value="kerta" /><span>Kerta</span></label>
+          </div>
+        </div>
+
+        <div class="field-row" id="size-fields">
+          <label class="field"><span>Asunnon koko (m²)</span>
+            <input type="number" name="m2" min="10" max="500" placeholder="65" />
+          </label>
+          <label class="field"><span>Huoneiden määrä</span>
+            <input type="number" name="rooms" min="1" max="15" placeholder="3" />
+          </label>
+        </div>
+
+        <label class="field" id="windows-field" hidden><span>Ikkunoiden määrä</span>
+          <input type="number" name="windows" min="1" max="100" placeholder="12" />
+        </label>
+
+        <div class="field-row">
+          <label class="checkbox"><input type="checkbox" name="bringEquipment" checked /><span>Lempi tuo siivousvälineet</span></label>
+          <label class="checkbox"><input type="checkbox" name="distantArea" /><span>Kaukopaikkakunta (+30 min)</span></label>
+        </div>
+
+        <button type="submit" class="btn btn--primary">Luo tarjous</button>
+        <p class="form-hint">Hinnat perustuvat Lempin julkiseen hinnastoon (lempi.fi/hinnasto). Tuntimäärä on demoa varten tehty arvio.</p>
+      </form>
+
+      <div class="card agent-panel">
+        <h2 class="card__title">Agentin näkymä</h2>
+        <div class="receipt" id="receipt">
+          <p class="receipt__placeholder">Täytä lomake vasemmalla — näet hinta-erittelyn tässä reaaliajassa, ilman piilokuluja.</p>
+        </div>
+        <div class="agent-message" id="agent-message" hidden>
+          <div class="agent-message__meta" id="agent-message-meta"></div>
+          <div class="agent-message__bubble" id="agent-message-text"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD-NÄKYMÄ -->
+  <section id="view-dashboard" class="view">
+    <h2 class="section-title">Liidit &amp; mittarit</h2>
+    <p class="section-subtitle">14 keksittyä esimerkkiliidiä viiden viikon ajalta. Mittarit ja kaaviot lasketaan dynaamisesti tästä datasta — kokeile suodattimia, ja kokeile myös "Luo tarjous" -lomaketta, uusi liidi ilmestyy tähän listaan istunnon ajaksi.</p>
+
+    <div class="metrics-row" id="metrics-row"></div>
+
+    <div class="charts-row">
+      <div class="card chart-card">
+        <h3>Liidit tilan mukaan</h3>
+        <canvas id="chart-status"></canvas>
+      </div>
+      <div class="card chart-card">
+        <h3>Tarjoukset vs. tilaukset / viikko</h3>
+        <canvas id="chart-weekly"></canvas>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label class="field"><span>Hae nimellä</span>
+        <input type="search" id="filter-search" placeholder="esim. Korhonen" />
+      </label>
+      <label class="field"><span>Tila</span>
+        <select id="filter-status">
+          <option value="">Kaikki</option>
+          <option value="tarjous_lahetetty">Tarjous lähetetty</option>
+          <option value="muistutus_lahetetty">Muistutus lähetetty</option>
+          <option value="tilattu">Tilattu</option>
+          <option value="hylatty">Hylätty</option>
+          <option value="ohjattu_kartoitukseen">Ohjattu kartoitukseen</option>
+        </select>
+      </label>
+      <label class="field"><span>Palvelu</span>
+        <select id="filter-service">
+          <option value="">Kaikki</option>
+          <option value="kotisiivous">Kotisiivous</option>
+          <option value="muuttosiivous">Muuttosiivous</option>
+          <option value="ikkunanpesu">Ikkunanpesu</option>
+          <option value="toimistosiivous">Toimistosiivous</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--ghost" id="filter-reset">Tyhjennä suodattimet</button>
+      <button type="button" class="btn btn--ghost" id="data-reset">Palauta esimerkkidata</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="leads-table">
+        <thead>
+          <tr>
+            <th>Asiakas</th><th>Palvelu</th><th>Hinta (väh. jälkeen)</th>
+            <th>Tila</th><th>Lähetetty</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  Prototyyppi AI Business Developer -hakemukseen · Lempi Kodinhoito · ei liity Lempin viralliseen järjestelmään · kesäkuu 2026
+</footer>
+
+<script>
+/* =========================================================
+   1) HINNOITTELU — sama deterministinen logiikka kuin
+      tuotantoprototyypin lib/priceEngine.js:ssä.
+   ========================================================= */
+const HOURLY_RATES = {
+  uusimaa: { jatkuva: 55, kerta: 65 },
+  turku_pirkanmaa: { jatkuva: 53, kerta: 60 },
+  muu: { jatkuva: 51, kerta: 59 },
+};
+const MIN_HOURS = { jatkuva: 2.5, kerta: 3 };
+const EQUIPMENT_FEE = { jatkuva: 14.9, kerta: 20 };
+const DEDUCTION_MULT = 0.65;
+const CITY_REGION = {
+  helsinki: "uusimaa", espoo: "uusimaa", vantaa: "uusimaa",
+  turku: "turku_pirkanmaa", tampere: "turku_pirkanmaa", nokia: "turku_pirkanmaa",
+  oulu: "muu", kuopio: "muu", lahti: "muu", hameenlinna: "muu",
+};
+const SERVICE_MULT = { kotisiivous: 1.0, muuttosiivous: 1.6 };
+const CITY_LABEL = {
+  helsinki: "Helsinki", espoo: "Espoo", vantaa: "Vantaa", tampere: "Tampere", nokia: "Nokia",
+  turku: "Turku", oulu: "Oulu", kuopio: "Kuopio", lahti: "Lahti", hameenlinna: "Hämeenlinna",
+};
+
+function calculateQuote(input) {
+  const { service, frequency, city, m2, rooms, windows, distantArea, bringEquipment } = input;
+  if (service === "toimistosiivous") return { requiresSiteVisit: true };
+
+  const region = CITY_REGION[city] || "uusimaa";
+  const billingType = service === "ikkunanpesu" || service === "muuttosiivous" ? "kerta" : (frequency || "kerta");
+  const hourlyRate = HOURLY_RATES[region][billingType];
+
+  let hours;
+  if (service === "ikkunanpesu") {
+    hours = 0.5 + (Number(windows) || 0) * 0.1;
+  } else {
+    const base = (Number(m2) || 0) * 0.035 + (Number(rooms) || 0) * 0.4;
+    hours = base * (SERVICE_MULT[service] ?? 1.0);
+  }
+  const minHours = MIN_HOURS[billingType];
+  const minHoursApplied = hours < minHours;
+  hours = Math.min(Math.max(hours, minHours), 14);
+  hours = Math.round(hours * 4) / 4;
+  if (distantArea) hours += 0.5;
+
+  const equipmentFee = bringEquipment ? EQUIPMENT_FEE[billingType] : 0;
+  const laborCost = hours * hourlyRate;
+  const totalBeforeDeduction = laborCost + equipmentFee;
+  const laborAfterDeduction = laborCost * DEDUCTION_MULT;
+  const totalAfterDeduction = laborAfterDeduction + equipmentFee;
+
+  return {
+    requiresSiteVisit: false, region, billingType, hourlyRate, hours, minHoursApplied,
+    equipmentFee,
+    laborCost: round2(laborCost),
+    totalBeforeDeduction: round2(totalBeforeDeduction),
+    laborAfterDeduction: round2(laborAfterDeduction),
+    totalAfterDeduction: round2(totalAfterDeduction),
+  };
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+function euro(n) {
+  return (Math.round(n * 100) / 100).toLocaleString("fi-FI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+
+/* =========================================================
+   2) AGENTIN TEKSTI — valmiit mallipohjat (EI live API-kutsua).
+      Hinta tulee AINA laskettuna parametrina, malli ei keksi sitä.
+   ========================================================= */
+function serviceNounPartitive(service) {
+  return { kotisiivous: "kotisiivouksesta", muuttosiivous: "muuttosiivouksesta", ikkunanpesu: "ikkunanpesusta" }[service] || "palvelusta";
+}
+function fallbackOffer(lead) {
+  const q = lead.quote;
+  return `Hei ${lead.name.split(" ")[0]}!
+
+Kiitos yhteydenotostasi - täältä tulee arvio ${serviceNounPartitive(lead.service)} osoitteessasi ${CITY_LABEL[lead.city] || lead.city}.
+
+Arvioimme käyntiin noin ${q.hours} tuntia, tuntihintaan ${euro(q.hourlyRate)}. Lisäksi käynnille tulee ${euro(q.equipmentFee)} välinelisä, jos tuomme siivousvälineet mukana. Yhteensä tämä tarkoittaa ${euro(q.totalBeforeDeduction)}, ja kotitalousvähennyksen jälkeen ${euro(q.totalAfterDeduction)}.
+
+Tämä on alustava arvio - vahvistamme tuntimäärän tarvittaessa lyhyellä puhelulla. Haluatko, että varaamme ajan suoraan kalenteriin?
+
+Lempi-tiimi`;
+}
+function fallbackSiteVisit(lead) {
+  return `Hei ${lead.name.split(" ")[0]}!
+
+Kiitos yhteydenotostasi toimistosiivouksen tiimoilta. Koska kohteet ovat aina erilaisia, ehdotamme lyhyttä kartoituskäyntiä tai puhelua, jotta voimme antaa tarkan ja reilun tarjouksen - ei arvauksia, ei piilokuluja.
+
+Sopisiko ensi viikolla?
+
+Lempi-tiimi`;
+}
+
+/* =========================================================
+   3) ESIMERKKIDATA — 14 keksittyä liidiä, levitetty viidelle
+      viikolle. Kaikki hinnat laskettu yllä olevalla logiikalla.
+   ========================================================= */
+const SEED_LEADS = [
+  { id:"l1", name:"Anna Korhonen", city:"helsinki", service:"kotisiivous", frequency:"jatkuva", m2:65, rooms:3, bringEquipment:true,
+    createdAt:"2026-05-25T09:14:00+03:00", offerSentAt:"2026-05-25T09:14:41+03:00", followUpSentAt:null, status:"tilattu" },
+  { id:"l2", name:"Mikko Salminen", city:"tampere", service:"kotisiivous", frequency:"kerta", m2:90, rooms:4, bringEquipment:true,
+    createdAt:"2026-05-28T14:02:00+03:00", offerSentAt:"2026-05-28T14:02:58+03:00", followUpSentAt:"2026-05-31T09:00:00+03:00", status:"muistutus_lahetetty" },
+  { id:"l3", name:"Liisa Heikkinen", city:"espoo", service:"muuttosiivous", m2:55, rooms:2, bringEquipment:true,
+    createdAt:"2026-05-30T11:20:00+03:00", offerSentAt:"2026-05-30T11:20:43+03:00", followUpSentAt:null, status:"hylatty" },
+  { id:"l4", name:"Jukka Virtanen", city:"oulu", service:"ikkunanpesu", windows:12, bringEquipment:false,
+    createdAt:"2026-06-02T16:45:00+03:00", offerSentAt:"2026-06-02T16:45:36+03:00", followUpSentAt:null, status:"tarjous_lahetetty" },
+  { id:"l5", name:"Sari Nieminen", city:"helsinki", service:"toimistosiivous", m2:300,
+    createdAt:"2026-06-03T08:30:00+03:00", offerSentAt:"2026-06-03T08:31:05+03:00", followUpSentAt:null, status:"ohjattu_kartoitukseen" },
+  { id:"l6", name:"Pekka Laine", city:"turku", service:"kotisiivous", frequency:"jatkuva", m2:80, rooms:4, bringEquipment:true,
+    createdAt:"2026-06-05T10:05:00+03:00", offerSentAt:"2026-06-05T10:05:47+03:00", followUpSentAt:null, status:"tilattu" },
+  { id:"l7", name:"Hanna Mäkinen", city:"vantaa", service:"kotisiivous", frequency:"kerta", m2:50, rooms:2, bringEquipment:true,
+    createdAt:"2026-06-08T13:11:00+03:00", offerSentAt:"2026-06-08T13:11:39+03:00", followUpSentAt:null, status:"tilattu" },
+  { id:"l8", name:"Antti Koivisto", city:"lahti", service:"muuttosiivous", m2:40, rooms:2, bringEquipment:true,
+    createdAt:"2026-06-09T09:40:00+03:00", offerSentAt:"2026-06-09T09:40:51+03:00", followUpSentAt:"2026-06-12T09:00:00+03:00", status:"tilattu" },
+  { id:"l9", name:"Riikka Lehtonen", city:"kuopio", service:"kotisiivous", frequency:"jatkuva", m2:70, rooms:3, bringEquipment:true,
+    createdAt:"2026-06-11T15:22:00+03:00", offerSentAt:"2026-06-11T15:22:44+03:00", followUpSentAt:"2026-06-14T09:00:00+03:00", status:"muistutus_lahetetty" },
+  { id:"l10", name:"Ville Hämäläinen", city:"hameenlinna", service:"ikkunanpesu", windows:20, bringEquipment:false,
+    createdAt:"2026-06-13T08:58:00+03:00", offerSentAt:"2026-06-13T08:58:33+03:00", followUpSentAt:null, status:"tilattu" },
+  { id:"l11", name:"Outi Rantanen", city:"nokia", service:"kotisiivous", frequency:"kerta", m2:45, rooms:2, bringEquipment:true,
+    createdAt:"2026-06-15T12:30:00+03:00", offerSentAt:"2026-06-15T12:30:49+03:00", followUpSentAt:"2026-06-18T09:00:00+03:00", status:"hylatty" },
+  { id:"l12", name:"Tomi Järvinen", city:"espoo", service:"kotisiivous", frequency:"jatkuva", m2:55, rooms:2, bringEquipment:true,
+    createdAt:"2026-06-17T17:02:00+03:00", offerSentAt:"2026-06-17T17:02:38+03:00", followUpSentAt:null, status:"tarjous_lahetetty" },
+  { id:"l13", name:"Elina Aaltonen", city:"helsinki", service:"muuttosiivous", m2:70, rooms:3, bringEquipment:true,
+    createdAt:"2026-06-18T10:15:00+03:00", offerSentAt:"2026-06-18T10:15:47+03:00", followUpSentAt:null, status:"hylatty" },
+  { id:"l14", name:"Juha Peltonen", city:"tampere", service:"toimistosiivous", m2:200,
+    createdAt:"2026-06-20T09:05:00+03:00", offerSentAt:"2026-06-20T09:06:09+03:00", followUpSentAt:null, status:"ohjattu_kartoitukseen" },
+];
+
+// Lasketaan hinta + agentin teksti jokaiselle seed-liidille valmiiksi.
+function hydrateLead(raw) {
+  const quote = calculateQuote(raw);
+  const lead = { ...raw, requiresSiteVisit: quote.requiresSiteVisit, quote: quote.requiresSiteVisit ? null : quote };
+  lead.offerText = quote.requiresSiteVisit ? fallbackSiteVisit(lead) : fallbackOffer(lead);
+  return lead;
+}
+let LEADS = SEED_LEADS.map(hydrateLead);
+
+/* =========================================================
+   4) MITTARIT
+   ========================================================= */
+function computeMetrics(leads) {
+  const total = leads.length;
+  const offered = leads.filter(l => !l.requiresSiteVisit).length;
+  const ordered = leads.filter(l => l.status === "tilattu").length;
+  const followUpsSent = leads.filter(l => l.followUpSentAt).length;
+  const followUpThenOrdered = leads.filter(l => l.followUpSentAt && l.status === "tilattu").length;
+  const responseMin = leads.filter(l => l.createdAt && l.offerSentAt)
+    .map(l => (new Date(l.offerSentAt) - new Date(l.createdAt)) / 60000);
+  const avgResponseMin = responseMin.length ? round1(responseMin.reduce((a,b)=>a+b,0) / responseMin.length) : null;
+  return {
+    totalLeads: total,
+    offersSent: offered,
+    conversionRate: offered ? round1((ordered / offered) * 100) : null,
+    followUpsSent,
+    followUpConversionRate: followUpsSent ? round1((followUpThenOrdered / followUpsSent) * 100) : null,
+    avgResponseMinutes: avgResponseMin,
+  };
+}
+function round1(n) { return Math.round(n * 10) / 10; }
+
+/* =========================================================
+   5) UI — välilehdet, lomake, live-esikatselu, lähetys
+   ========================================================= */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => { b.classList.remove("is-active"); b.setAttribute("aria-selected","false"); });
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("is-active"));
+    btn.classList.add("is-active"); btn.setAttribute("aria-selected","true");
+    document.getElementById("view-" + btn.dataset.view).classList.add("is-active");
+    if (btn.dataset.view === "dashboard") renderDashboard();
+  });
+});
+
+const form = document.getElementById("quote-form");
+const serviceSelect = document.getElementById("service-select");
+const frequencyField = document.getElementById("frequency-field");
+const sizeFields = document.getElementById("size-fields");
+const windowsField = document.getElementById("windows-field");
+
+function syncFieldVisibility() {
+  const service = serviceSelect.value;
+  frequencyField.hidden = service !== "kotisiivous";
+  windowsField.hidden = service !== "ikkunanpesu";
+  sizeFields.hidden = service === "ikkunanpesu";
+  form.querySelector('[name="m2"]').required = service !== "ikkunanpesu";
+}
+serviceSelect.addEventListener("change", () => { syncFieldVisibility(); renderPreview(); });
+syncFieldVisibility();
+
+const receiptEl = document.getElementById("receipt");
+function formDataObject() {
+  const fd = new FormData(form);
+  return {
+    service: fd.get("service"), frequency: fd.get("frequency"), city: fd.get("city"),
+    m2: fd.get("m2"), rooms: fd.get("rooms"), windows: fd.get("windows"),
+    distantArea: fd.get("distantArea") === "on", bringEquipment: fd.get("bringEquipment") === "on",
+  };
+}
+function renderReceipt(q) {
+  if (!q) { receiptEl.innerHTML = `<p class="receipt__placeholder">Täytä lomake vasemmalla — näet hinta-erittelyn tässä reaaliajassa, ilman piilokuluja.</p>`; return; }
+  if (q.requiresSiteVisit) { receiptEl.innerHTML = `<p class="receipt__placeholder">Toimistosiivous hinnoitellaan kohteen mukaan — agentti ehdottaa kartoituskäyntiä eikä arvaa hintaa.</p>`; return; }
+  const lines = [
+    ["Tuntimäärä (arvio)", `${q.hours} h`],
+    ["Tuntihinta", euro(q.hourlyRate)],
+    ["Työn osuus", euro(q.laborCost)],
+    ["Välinelisä", euro(q.equipmentFee)],
+    ["Yhteensä ennen vähennystä", euro(q.totalBeforeDeduction)],
+  ];
+  const html = lines.map(([l,v]) => `<div class="receipt__line"><span>${l}</span><span>${v}</span></div>`).join("");
+  const total = `<div class="receipt__line receipt__line--total"><span>Hinta kotitalousvähennyksen jälkeen</span><span>${euro(q.totalAfterDeduction)}</span></div>`;
+  const note = q.minHoursApplied ? `<p class="receipt__note">Minimiveloitus sovellettu.</p>` : "";
+  receiptEl.innerHTML = html + total + note;
+}
+function renderPreview() {
+  const data = formDataObject();
+  if (!data.service) return;
+  renderReceipt(calculateQuote(data));
+}
+form.addEventListener("input", renderPreview);
+
+const agentMessageWrap = document.getElementById("agent-message");
+const agentMessageMeta = document.getElementById("agent-message-meta");
+const agentMessageText = document.getElementById("agent-message-text");
+const submitBtn = form.querySelector('button[type="submit"]');
+
+function typeWriter(el, text, speed = 14) {
+  el.textContent = "";
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = text; return; }
+  let i = 0;
+  (function tick() { el.textContent += text[i]; i++; if (i < text.length) setTimeout(tick, speed); })();
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Agentti laskee…";
+  agentMessageWrap.hidden = true;
+
+  const data = formDataObject();
+  const name = form.querySelector('[name="name"]').value || "Asiakas";
+  const quote = calculateQuote(data);
+
+  setTimeout(() => {
+    renderReceipt(quote);
+    submitBtn.textContent = "Agentti kirjoittaa viestiä…";
+
+    const lead = {
+      id: "demo" + Date.now(), name, city: data.city, service: data.service, frequency: data.frequency,
+      requiresSiteVisit: quote.requiresSiteVisit, quote: quote.requiresSiteVisit ? null : quote,
+      createdAt: new Date().toISOString(), offerSentAt: new Date().toISOString(), followUpSentAt: null,
+      status: quote.requiresSiteVisit ? "ohjattu_kartoitukseen" : "tarjous_lahetetty",
+    };
+    lead.offerText = quote.requiresSiteVisit ? fallbackSiteVisit(lead) : fallbackOffer(lead);
+
+    setTimeout(() => {
+      agentMessageMeta.textContent = `Mallipohja (ei live-API-kutsua) · ${new Date(lead.offerSentAt).toLocaleString("fi-FI")}`;
+      agentMessageWrap.hidden = false;
+      typeWriter(agentMessageText, lead.offerText);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Luo tarjous";
+
+      LEADS = [lead, ...LEADS];
+      renderDashboard();
+    }, 450);
+  }, 500);
+});
+
+/* =========================================================
+   6) DASHBOARD — KPI:t, suodatus, taulukko, kaaviot
+   ========================================================= */
+const STATUS_LABEL = {
+  tarjous_lahetetty: ["Tarjous lähetetty", "badge--sent"],
+  muistutus_lahetetty: ["Muistutus lähetetty", "badge--followup"],
+  tilattu: ["Tilattu", "badge--won"],
+  hylatty: ["Hylätty", "badge--lost"],
+  ohjattu_kartoitukseen: ["Ohjattu kartoitukseen", "badge--visit"],
+};
+const STATUS_ORDER = ["tarjous_lahetetty","muistutus_lahetetty","tilattu","hylatty","ohjattu_kartoitukseen"];
+
+function metricCard(value, label) {
+  return `<div class="metric-card"><div class="metric-card__value">${value}</div><div class="metric-card__label">${label}</div></div>`;
+}
+
+let statusChart, weeklyChart;
+
+function renderDashboard() {
+  const metrics = computeMetrics(LEADS);
+  document.getElementById("metrics-row").innerHTML = [
+    metricCard(metrics.totalLeads, "Liidejä yhteensä"),
+    metricCard(metrics.offersSent, "Tarjouksia lähetetty"),
+    metricCard(metrics.conversionRate !== null ? metrics.conversionRate + " %" : "—", "Tarjous → tilaus"),
+    metricCard(metrics.avgResponseMinutes !== null ? metrics.avgResponseMinutes + " min" : "—", "Keskim. vasteaika"),
+    metricCard(metrics.followUpsSent, "Muistutuksia lähetetty"),
+    metricCard(metrics.followUpConversionRate !== null ? metrics.followUpConversionRate + " %" : "—", "Muistutus → tilaus"),
+  ].join("");
+
+  renderTable();
+  renderCharts();
+}
+
+function getFilters() {
+  return {
+    search: document.getElementById("filter-search").value.trim().toLowerCase(),
+    status: document.getElementById("filter-status").value,
+    service: document.getElementById("filter-service").value,
+  };
+}
+
+function renderTable() {
+  const { search, status, service } = getFilters();
+  const filtered = LEADS.filter(l =>
+    (!search || l.name.toLowerCase().includes(search)) &&
+    (!status || l.status === status) &&
+    (!service || l.service === service)
+  );
+
+  const tbody = document.getElementById("leads-tbody");
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Ei liidejä näillä suodattimilla.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(lead => {
+    const [label, cls] = STATUS_LABEL[lead.status] || [lead.status, "badge--sent"];
+    const price = lead.quote ? euro(lead.quote.totalAfterDeduction) : "—";
+    const sentAt = lead.offerSentAt ? new Date(lead.offerSentAt).toLocaleDateString("fi-FI") : "—";
+    return `<tr>
+      <td>${lead.name}<br><span style="color:#6B7C78;font-size:12px">${CITY_LABEL[lead.city] || lead.city}</span></td>
+      <td>${lead.service}${lead.frequency ? " (" + lead.frequency + ")" : ""}</td>
+      <td>${price}</td>
+      <td><span class="badge ${cls}">${label}</span></td>
+      <td>${sentAt}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderCharts() {
+  const statusCounts = STATUS_ORDER.map(s => LEADS.filter(l => l.status === s).length);
+  const statusLabels = STATUS_ORDER.map(s => STATUS_LABEL[s][0]);
+
+  const ctx1 = document.getElementById("chart-status").getContext("2d");
+  if (statusChart) statusChart.destroy();
+  statusChart = new Chart(ctx1, {
+    type: "bar",
+    data: { labels: statusLabels, datasets: [{ data: statusCounts, backgroundColor: "#1E8C82", borderRadius: 6 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { font: { size: 10.5 } } } },
+      maintainAspectRatio: false,
+    },
+  });
+
+  // Viikoittainen liidi-/tilausmäärä createdAt-kentän perusteella.
+  const weekKey = (iso) => {
+    const d = new Date(iso);
+    const onejan = new Date(d.getFullYear(), 0, 1);
+    const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+    return `${d.getFullYear()}-v${week}`;
+  };
+  const weekMap = {};
+  LEADS.forEach(l => {
+    const k = weekKey(l.createdAt);
+    weekMap[k] = weekMap[k] || { offers: 0, orders: 0 };
+    weekMap[k].offers += 1;
+    if (l.status === "tilattu") weekMap[k].orders += 1;
+  });
+  const weekKeys = Object.keys(weekMap).sort();
+
+  const ctx2 = document.getElementById("chart-weekly").getContext("2d");
+  if (weeklyChart) weeklyChart.destroy();
+  weeklyChart = new Chart(ctx2, {
+    type: "line",
+    data: {
+      labels: weekKeys,
+      datasets: [
+        { label: "Tarjouksia", data: weekKeys.map(k => weekMap[k].offers), borderColor: "#0E3B38", backgroundColor: "rgba(14,59,56,.12)", fill: true, tension: 0.3 },
+        { label: "Tilauksia", data: weekKeys.map(k => weekMap[k].orders), borderColor: "#FF7A59", backgroundColor: "rgba(255,122,89,.15)", fill: true, tension: 0.3 },
+      ],
+    },
+    options: {
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { font: { size: 10.5 } } } },
+      maintainAspectRatio: false,
+    },
+  });
+}
+
+["filter-search","filter-status","filter-service"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderTable);
+});
+document.getElementById("filter-reset").addEventListener("click", () => {
+  document.getElementById("filter-search").value = "";
+  document.getElementById("filter-status").value = "";
+  document.getElementById("filter-service").value = "";
+  renderTable();
+});
+document.getElementById("data-reset").addEventListener("click", () => {
+  LEADS = SEED_LEADS.map(hydrateLead);
+  renderDashboard();
+});
+
+renderDashboard();
+</script>
+</body>
+</html>
