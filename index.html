@@ -68,11 +68,19 @@ main { max-width: 1100px; margin: 0 auto; padding: 28px 22px 64px; }
 .steps__num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #1E8C82; font-weight: 500; }
 .steps__label { font-size: 13.5px; color: #4A5E5B; }
 
-.console { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; align-items: start; }
+.console { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 22px; align-items: start; }
 @media (max-width: 860px) { .console { grid-template-columns: 1fr; } }
 
 .card { background: #FFFFFF; border: 1px solid #D9E6E2; border-radius: 16px; padding: 22px; }
 .card__title { font-size: 16px; font-weight: 600; color: #0E3B38; margin-bottom: 16px; }
+.card__kicker { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #8A9A96; margin-bottom: 6px; }
+.card__kicker--new { color: #FF7A59; }
+
+.form-card { background: #F7FAF9; border-color: #E4ECEA; }
+.form-card .card__title { font-size: 14.5px; color: #4A5E5B; font-weight: 600; margin-bottom: 14px; }
+
+.card.agent-panel { border-color: #BFE3DC; box-shadow: 0 16px 34px -22px rgba(14,59,56,.4); }
+.card.agent-panel .card__title { font-size: 18px; }
 
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
@@ -93,6 +101,8 @@ textarea { resize: vertical; }
 
 .checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 14px; }
 .checkbox input { width: 16px; height: 16px; accent-color: #1E8C82; }
+.checkbox-row { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-bottom: 14px; }
+.checkbox-row .checkbox { margin-bottom: 0; }
 
 .btn {
   font-weight: 600; font-size: 14.5px; border: none; border-radius: 10px; padding: 12px 20px;
@@ -138,7 +148,8 @@ textarea { resize: vertical; }
 .section-title { font-size: 22px; color: #0E3B38; margin-bottom: 6px; }
 .section-subtitle { font-size: 13.5px; color: #4A5E5B; margin: 0 0 22px; max-width: 680px; }
 
-.metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.metrics-footnote { font-size: 11px; color: #6B7C78; margin: 0 0 22px; }
 .metric-card { background: #fff; border: 1px solid #D9E6E2; border-radius: 14px; padding: 16px 18px; }
 .metric-card__value { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #0E3B38; }
 .metric-card__label { font-size: 12px; color: #6B7C78; margin-top: 4px; }
@@ -183,7 +194,7 @@ textarea { resize: vertical; }
       <span class="brand-mark">Lempi</span>
       <span class="demo-pill">Demo</span>
     </div>
-    <span class="brand-sub">Tarjous- ja liidiagentti — prototyyppi hakemukseen</span>
+    <span class="brand-sub">Tarjous- ja liidiagentti — jatke hintalaskurille, ei korvaaja</span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Näkymät">
     <button class="tab-btn is-active" data-view="agent" role="tab" aria-selected="true">Tarjousagentti</button>
@@ -196,39 +207,41 @@ textarea { resize: vertical; }
   <div class="notice">
     <span class="notice__icon">ℹ️</span>
     <div>
-      <b>Mistä tässä on kyse:</b> demo näyttää, miten AI-pohjainen tarjous- ja liidiagentti voisi
-      toimia Lempi Kodinhoidolle. Asiakas kertoo kohteen tiedot, agentti laskee hinnan läpinäkyvästi
-      ja kirjoittaa tarjouksen — halutessasi oikealla Claude-mallilla, jos liität oman API-avaimesi
-      — ja liidit sekä niitä koskevat mittarit (konversio, vasteaika, muistutusten teho) kertyvät
-      automaattisesti alla olevaan näkymään.
+      <b>Mistä tässä on kyse:</b> Lempin sivuilla on jo hintalaskuri, joka antaa asiakkaalle
+      arvion. Tämä agentti ei korvaa sitä, vaan jatkaa siitä mihin laskuri jää: se kirjoittaa
+      lähetysvalmiin tarjouksen, muistuttaa asiakasta jos vastausta ei tule, ja kerryttää liidien
+      tilat ja mittarit (konversio, vasteaika, muistutusten teho) automaattisesti — eli tekee sen
+      työn, jonka asiakaspalvelu nyt tekee laskurin jälkeen käsin. Data tässä on keksittyä;
+      oikeassa käytössä liidit tulisivat HubSpotista ja tuntiarviot toteutuneesta siivoushistoriasta.
     </div>
   </div>
 
   <!-- AGENTTINÄKYMÄ -->
   <section id="view-agent" class="view is-active">
     <ol class="steps">
-      <li><span class="steps__num">01</span><span class="steps__label">Asiakas kertoo kohteen tiedot</span></li>
-      <li><span class="steps__num">02</span><span class="steps__label">Agentti laskee hinnan läpinäkyvästi</span></li>
-      <li><span class="steps__num">03</span><span class="steps__label">Agentti kirjoittaa ja "lähettää" viestin</span></li>
+      <li><span class="steps__num">00</span><span class="steps__label">Asiakas saa arvion lempi.fi-hintalaskurilla (jo olemassa)</span></li>
+      <li><span class="steps__num">01</span><span class="steps__label">Agentti vahvistaa hinnan läpinäkyvästi ja kirjoittaa tarjouksen</span></li>
+      <li><span class="steps__num">02</span><span class="steps__label">Agentti seuraa tilannetta ja muistuttaa, jos ei vastausta</span></li>
     </ol>
 
     <div class="console">
       <form id="quote-form" class="card form-card" autocomplete="off">
-        <h2 class="card__title">Asiakkaan tiedot</h2>
+        <span class="card__kicker">Syöte — samat tiedot kuin lempi.fi-laskurissa</span>
+        <h2 class="card__title">Simuloi laskurin antamaa tietoa</h2>
 
         <div class="field-row">
           <label class="field"><span>Nimi</span>
-            <input type="text" name="name" required placeholder="Etu- ja sukunimi" />
+            <input type="text" name="name" required placeholder="Etu- ja sukunimi" value="Maria Mallikas" />
           </label>
           <label class="field"><span>Sähköposti</span>
-            <input type="email" name="email" required placeholder="nimi@esimerkki.fi" />
+            <input type="email" name="email" required placeholder="nimi@esimerkki.fi" value="maria@esimerkki.fi" />
           </label>
         </div>
 
         <label class="field"><span>Kaupunki</span>
           <select name="city" required>
             <option value="">Valitse…</option>
-            <option value="helsinki">Helsinki</option>
+            <option value="helsinki" selected>Helsinki</option>
             <option value="espoo">Espoo</option>
             <option value="vantaa">Vantaa</option>
             <option value="tampere">Tampere</option>
@@ -260,21 +273,26 @@ textarea { resize: vertical; }
 
         <div class="field-row" id="size-fields">
           <label class="field"><span>Asunnon koko (m²)</span>
-            <input type="number" name="m2" min="10" max="500" placeholder="65" />
+            <input type="number" name="m2" min="10" max="500" placeholder="65" value="65" />
           </label>
           <label class="field"><span>Huoneiden määrä</span>
-            <input type="number" name="rooms" min="1" max="15" placeholder="3" />
+            <input type="number" name="rooms" min="1" max="15" placeholder="3" value="3" />
           </label>
         </div>
 
         <label class="field" id="windows-field" hidden><span>Ikkunoiden määrä</span>
-          <input type="number" name="windows" min="1" max="100" placeholder="12" />
+          <input type="number" name="windows" min="1" max="100" placeholder="12" value="12" />
         </label>
 
-        <div class="field-row">
+        <div class="checkbox-row">
           <label class="checkbox"><input type="checkbox" name="bringEquipment" checked /><span>Lempi tuo siivousvälineet</span></label>
           <label class="checkbox"><input type="checkbox" name="distantArea" /><span>Kaukopaikkakunta (+30 min)</span></label>
+          <label class="checkbox"><input type="checkbox" name="pets" /><span>Kotona on lemmikkejä</span></label>
         </div>
+
+        <label class="field"><span>Toivomukset (valinnainen)</span>
+          <textarea name="notes" rows="2" placeholder="Esim. ajankohta, erityistoivomukset…">Arkiaamuisin kiitos.</textarea>
+        </label>
 
         <label class="field api-key-field" id="api-key-field">
           <span>Claude API-avain (valinnainen — agentti kirjoittaa viestin oikeasti tekoälyllä)</span>
@@ -290,6 +308,7 @@ textarea { resize: vertical; }
       </form>
 
       <div class="card agent-panel">
+        <span class="card__kicker card__kicker--new">Agentti — tämä on uutta</span>
         <h2 class="card__title">Agentin näkymä</h2>
         <div class="receipt" id="receipt">
           <p class="receipt__placeholder">Täytä lomake vasemmalla — näet hinta-erittelyn tässä reaaliajassa, ilman piilokuluja.</p>
@@ -305,9 +324,10 @@ textarea { resize: vertical; }
   <!-- DASHBOARD-NÄKYMÄ -->
   <section id="view-dashboard" class="view">
     <h2 class="section-title">Liidit &amp; mittarit</h2>
-    <p class="section-subtitle">14 keksittyä esimerkkiliidiä viiden viikon ajalta. Mittarit ja kaaviot lasketaan dynaamisesti tästä datasta — kokeile suodattimia, ja kokeile myös "Luo tarjous" -lomaketta, uusi liidi ilmestyy tähän listaan istunnon ajaksi.</p>
+    <p class="section-subtitle">14 keksittyä esimerkkiliidiä viiden viikon ajalta. Liideille, joiden tila on "Tarjous lähetetty", voit painaa "Lähetä muistutus" ja nähdä agentin oikeasti generoivan muistutusviestin — vie hiiri muistutus-merkin päälle nähdäksesi sen sisällön. Kokeile myös "Luo tarjous" -lomaketta, uusi liidi ilmestyy tähän listaan istunnon ajaksi.</p>
 
     <div class="metrics-row" id="metrics-row"></div>
+    <p class="metrics-footnote">*Säästetty myyntiaika on oletus: käsin tehty hinnan laskenta ja tarjouksen kirjoittaminen kestää noin 12 min/liidi — suuntaa antava esimerkki, ei mitattu luku.</p>
 
     <div class="charts-row">
       <div class="card chart-card">
@@ -347,12 +367,18 @@ textarea { resize: vertical; }
       <button type="button" class="btn btn--ghost" id="data-reset">Palauta esimerkkidata</button>
     </div>
 
+    <div class="card agent-message" id="followup-preview" hidden style="margin-bottom: 20px;">
+      <h3 style="font-size:14px;color:#0E3B38;margin-bottom:10px;">Agentin generoima muistutusviesti</h3>
+      <div class="agent-message__meta" id="followup-preview-meta"></div>
+      <div class="agent-message__bubble" id="followup-preview-text"></div>
+    </div>
+
     <div class="table-wrap">
       <table class="leads-table">
         <thead>
           <tr>
             <th>Asiakas</th><th>Palvelu</th><th>Hinta (väh. jälkeen)</th>
-            <th>Tila</th><th>Lähetetty</th>
+            <th>Tila</th><th>Lähetetty</th><th>Toiminnot</th>
           </tr>
         </thead>
         <tbody id="leads-tbody"></tbody>
@@ -440,11 +466,15 @@ function serviceNounPartitive(service) {
 }
 function fallbackOffer(lead) {
   const q = lead.quote;
+  const extras = [];
+  if (lead.pets) extras.push("Merkitsimme ylös, että kotona on lemmikkejä - kerromme tästä etukäteen siivoojalle.");
+  if (lead.notes) extras.push(`Otimme huomioon toivomuksesi: "${lead.notes}".`);
+  const extraBlock = extras.length ? "\n\n" + extras.join(" ") : "";
   return `Hei ${lead.name.split(" ")[0]}!
 
 Kiitos yhteydenotostasi - täältä tulee arvio ${serviceNounPartitive(lead.service)} osoitteessasi ${CITY_LABEL[lead.city] || lead.city}.
 
-Arvioimme käyntiin noin ${q.hours} tuntia, tuntihintaan ${euro(q.hourlyRate)}. Lisäksi käynnille tulee ${euro(q.equipmentFee)} välinelisä, jos tuomme siivousvälineet mukana. Yhteensä tämä tarkoittaa ${euro(q.totalBeforeDeduction)}, ja kotitalousvähennyksen jälkeen ${euro(q.totalAfterDeduction)}.
+Arvioimme käyntiin noin ${q.hours} tuntia, tuntihintaan ${euro(q.hourlyRate)}. Lisäksi käynnille tulee ${euro(q.equipmentFee)} välinelisä, jos tuomme siivousvälineet mukana. Yhteensä tämä tarkoittaa ${euro(q.totalBeforeDeduction)}, ja kotitalousvähennyksen jälkeen ${euro(q.totalAfterDeduction)}.${extraBlock}
 
 Tämä on alustava arvio - vahvistamme tuntimäärän tarvittaessa lyhyellä puhelulla. Haluatko, että varaamme ajan suoraan kalenteriin?
 
@@ -489,8 +519,12 @@ ystävällisesti, että annamme tarkan ja reilun tarjouksen lyhyen kartoituskäy
 jälkeen, ja ehdota seuraavaa askelta.`;
   }
   const q = lead.quote;
+  const extraLines = [];
+  if (lead.pets) extraLines.push("Kotona on lemmikkejä - mainitse lyhyesti, että kerrotte tästä siivoojalle etukäteen.");
+  if (lead.notes) extraLines.push(`Asiakkaan oma toivomus: "${lead.notes}" - ota tämä huomioon viestissä.`);
   return `Asiakas: ${lead.name}, kaupunki ${CITY_LABEL[lead.city] || lead.city}.
 Palvelu: ${lead.service}${lead.frequency ? " (" + lead.frequency + ")" : ""}.
+${extraLines.join("\n")}
 
 Laskettu hintaerittely:
 - Arvioitu tuntimäärä: ${q.hours} h
@@ -550,11 +584,72 @@ async function generateOfferText(lead, apiKey) {
 }
 
 /* =========================================================
+   2c) MUISTUTUSVIESTI — sama BYOK-malli kuin tarjouksessa.
+      Käytetään dashboardin "Lähetä muistutus" -toiminnossa.
+   ========================================================= */
+function fallbackFollowUp(lead) {
+  const q = lead.quote;
+  return `Hei ${lead.name.split(" ")[0]}!
+
+Lähetimme sinulle tarjouksen (${euro(q.totalAfterDeduction)}) muutama päivä sitten - halusimme vain varmistaa, ettei se hukkunut sähköpostitulvaan.
+
+Jos hinta tai ajankohta ei ole vielä sopiva, muokkaamme tarjousta mielellämme. Vastaa vaikka tähän viestiin, tai soitamme sinulle, jos se on helpompaa.
+
+Lempi-tiimi`;
+}
+
+function liveFollowUpPrompt(lead) {
+  const q = lead.quote;
+  return `Asiakkaalle ${lead.name} lähetettiin tarjous (${euro(q.totalAfterDeduction)}, ${lead.service}), eikä
+hän ole vielä vastannut tai tilannut. Kirjoita lyhyt, ei-tyrkyttävä muistutusviesti, jossa tarjotaan apua
+päätöksenteossa ja matala kynnys vastata, esim. tarjoamalla soittoaikaa tai mahdollisuutta muokata tarjousta.`;
+}
+
+async function generateLiveFollowUp(lead, apiKey) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 400,
+      system: CLAUDE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: liveFollowUpPrompt(lead) }],
+    }),
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody?.error?.message || `API-virhe (${response.status})`);
+  }
+  const data = await response.json();
+  const textBlock = data.content?.find((b) => b.type === "text");
+  if (!textBlock?.text) throw new Error("Tyhjä vastaus API:lta");
+  return textBlock.text.trim();
+}
+
+async function generateFollowUpText(lead, apiKey) {
+  if (!apiKey) {
+    return { text: fallbackFollowUp(lead), generatedBy: "Mallipohja (ei API-avainta annettu)" };
+  }
+  try {
+    const text = await generateLiveFollowUp(lead, apiKey);
+    return { text, generatedBy: `${CLAUDE_MODEL} (live, oma avaimesi)` };
+  } catch (err) {
+    console.error("Live-kutsu epäonnistui, käytetään mallipohjaa:", err);
+    return { text: fallbackFollowUp(lead), generatedBy: `Mallipohja (live-kutsu epäonnistui: ${err.message})` };
+  }
+}
+
+/* =========================================================
    3) ESIMERKKIDATA — 14 keksittyä liidiä, levitetty viidelle
       viikolle. Kaikki hinnat laskettu yllä olevalla logiikalla.
    ========================================================= */
 const SEED_LEADS = [
-  { id:"l1", name:"Anna Korhonen", city:"helsinki", service:"kotisiivous", frequency:"jatkuva", m2:65, rooms:3, bringEquipment:true,
+  { id:"l1", name:"Anna Korhonen", city:"helsinki", service:"kotisiivous", frequency:"jatkuva", m2:65, rooms:3, bringEquipment:true, pets:true,
     createdAt:"2026-05-25T09:14:00+03:00", offerSentAt:"2026-05-25T09:14:41+03:00", followUpSentAt:null, status:"tilattu" },
   { id:"l2", name:"Mikko Salminen", city:"tampere", service:"kotisiivous", frequency:"kerta", m2:90, rooms:4, bringEquipment:true,
     createdAt:"2026-05-28T14:02:00+03:00", offerSentAt:"2026-05-28T14:02:58+03:00", followUpSentAt:"2026-05-31T09:00:00+03:00", status:"muistutus_lahetetty" },
@@ -568,7 +663,7 @@ const SEED_LEADS = [
     createdAt:"2026-06-05T10:05:00+03:00", offerSentAt:"2026-06-05T10:05:47+03:00", followUpSentAt:null, status:"tilattu" },
   { id:"l7", name:"Hanna Mäkinen", city:"vantaa", service:"kotisiivous", frequency:"kerta", m2:50, rooms:2, bringEquipment:true,
     createdAt:"2026-06-08T13:11:00+03:00", offerSentAt:"2026-06-08T13:11:39+03:00", followUpSentAt:null, status:"tilattu" },
-  { id:"l8", name:"Antti Koivisto", city:"lahti", service:"muuttosiivous", m2:40, rooms:2, bringEquipment:true,
+  { id:"l8", name:"Antti Koivisto", city:"lahti", service:"muuttosiivous", m2:40, rooms:2, bringEquipment:true, notes:"Muutto kahden viikon päästä, tarvitaan myös uunin pesu.",
     createdAt:"2026-06-09T09:40:00+03:00", offerSentAt:"2026-06-09T09:40:51+03:00", followUpSentAt:"2026-06-12T09:00:00+03:00", status:"tilattu" },
   { id:"l9", name:"Riikka Lehtonen", city:"kuopio", service:"kotisiivous", frequency:"jatkuva", m2:70, rooms:3, bringEquipment:true,
     createdAt:"2026-06-11T15:22:00+03:00", offerSentAt:"2026-06-11T15:22:44+03:00", followUpSentAt:"2026-06-14T09:00:00+03:00", status:"muistutus_lahetetty" },
@@ -596,6 +691,8 @@ let LEADS = SEED_LEADS.map(hydrateLead);
 /* =========================================================
    4) MITTARIT
    ========================================================= */
+const MANUAL_MINUTES_PER_LEAD = 12; // oletus: käsin laskenta + tarjouksen kirjoittaminen, ks. alaviite UI:ssa
+
 function computeMetrics(leads) {
   const total = leads.length;
   const offered = leads.filter(l => !l.requiresSiteVisit).length;
@@ -605,6 +702,7 @@ function computeMetrics(leads) {
   const responseMin = leads.filter(l => l.createdAt && l.offerSentAt)
     .map(l => (new Date(l.offerSentAt) - new Date(l.createdAt)) / 60000);
   const avgResponseMin = responseMin.length ? round1(responseMin.reduce((a,b)=>a+b,0) / responseMin.length) : null;
+  const manualHoursSaved = round1((total * MANUAL_MINUTES_PER_LEAD) / 60);
   return {
     totalLeads: total,
     offersSent: offered,
@@ -612,6 +710,7 @@ function computeMetrics(leads) {
     followUpsSent,
     followUpConversionRate: followUpsSent ? round1((followUpThenOrdered / followUpsSent) * 100) : null,
     avgResponseMinutes: avgResponseMin,
+    manualHoursSaved,
   };
 }
 function round1(n) { return Math.round(n * 10) / 10; }
@@ -652,6 +751,7 @@ function formDataObject() {
     service: fd.get("service"), frequency: fd.get("frequency"), city: fd.get("city"),
     m2: fd.get("m2"), rooms: fd.get("rooms"), windows: fd.get("windows"),
     distantArea: fd.get("distantArea") === "on", bringEquipment: fd.get("bringEquipment") === "on",
+    pets: fd.get("pets") === "on", notes: (fd.get("notes") || "").trim(),
   };
 }
 function renderReceipt(q) {
@@ -697,6 +797,10 @@ document.getElementById("toggle-key-visibility").addEventListener("click", (e) =
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
   submitBtn.disabled = true;
   submitBtn.textContent = "Agentti laskee…";
   agentMessageWrap.hidden = true;
@@ -712,6 +816,7 @@ form.addEventListener("submit", async (e) => {
 
   const lead = {
     id: "demo" + Date.now(), name, city: data.city, service: data.service, frequency: data.frequency,
+    pets: data.pets, notes: data.notes,
     requiresSiteVisit: quote.requiresSiteVisit, quote: quote.requiresSiteVisit ? null : quote,
     createdAt: new Date().toISOString(), offerSentAt: new Date().toISOString(), followUpSentAt: null,
     status: quote.requiresSiteVisit ? "ohjattu_kartoitukseen" : "tarjous_lahetetty",
@@ -758,6 +863,7 @@ function renderDashboard() {
     metricCard(metrics.offersSent, "Tarjouksia lähetetty"),
     metricCard(metrics.conversionRate !== null ? metrics.conversionRate + " %" : "—", "Tarjous → tilaus"),
     metricCard(metrics.avgResponseMinutes !== null ? metrics.avgResponseMinutes + " min" : "—", "Keskim. vasteaika"),
+    metricCard(metrics.manualHoursSaved + " h", "Säästetty myyntiaika*"),
     metricCard(metrics.followUpsSent, "Muistutuksia lähetetty"),
     metricCard(metrics.followUpConversionRate !== null ? metrics.followUpConversionRate + " %" : "—", "Muistutus → tilaus"),
   ].join("");
@@ -774,6 +880,10 @@ function getFilters() {
   };
 }
 
+function escapeAttr(str) {
+  return String(str).replace(/"/g, "&quot;");
+}
+
 function renderTable() {
   const { search, status, service } = getFilters();
   const filtered = LEADS.filter(l =>
@@ -784,19 +894,26 @@ function renderTable() {
 
   const tbody = document.getElementById("leads-tbody");
   if (!filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Ei liidejä näillä suodattimilla.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Ei liidejä näillä suodattimilla.</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(lead => {
     const [label, cls] = STATUS_LABEL[lead.status] || [lead.status, "badge--sent"];
     const price = lead.quote ? euro(lead.quote.totalAfterDeduction) : "—";
     const sentAt = lead.offerSentAt ? new Date(lead.offerSentAt).toLocaleDateString("fi-FI") : "—";
+    const badgeTitle = lead.followUpText && lead.status === "muistutus_lahetetty"
+      ? ` title="${escapeAttr(lead.followUpText)}"` : "";
+    const canFollowUp = lead.quote && lead.status === "tarjous_lahetetty";
+    const actions = canFollowUp
+      ? `<button class="btn btn--ghost btn--small" data-action="follow-up" data-id="${lead.id}">Lähetä muistutus</button>`
+      : `<span style="color:#B9C4C1;font-size:12px">—</span>`;
     return `<tr>
       <td>${lead.name}<br><span style="color:#6B7C78;font-size:12px">${CITY_LABEL[lead.city] || lead.city}</span></td>
       <td>${lead.service}${lead.frequency ? " (" + lead.frequency + ")" : ""}</td>
       <td>${price}</td>
-      <td><span class="badge ${cls}">${label}</span></td>
+      <td><span class="badge ${cls}"${badgeTitle}>${label}</span></td>
       <td>${sentAt}</td>
+      <td>${actions}</td>
     </tr>`;
   }).join("");
 }
@@ -863,6 +980,30 @@ document.getElementById("filter-reset").addEventListener("click", () => {
 });
 document.getElementById("data-reset").addEventListener("click", () => {
   LEADS = SEED_LEADS.map(hydrateLead);
+  renderDashboard();
+});
+
+document.getElementById("leads-tbody").addEventListener("click", async (e) => {
+  const btn = e.target.closest('button[data-action="follow-up"]');
+  if (!btn) return;
+  const lead = LEADS.find(l => l.id === btn.dataset.id);
+  if (!lead) return;
+  btn.disabled = true;
+  btn.textContent = "Lähetetään…";
+  const apiKey = apiKeyInput.value.trim();
+  const { text, generatedBy } = await generateFollowUpText(lead, apiKey);
+  lead.followUpSentAt = new Date().toISOString();
+  lead.followUpText = text;
+  lead.followUpGeneratedBy = generatedBy;
+  lead.status = "muistutus_lahetetty";
+
+  const previewWrap = document.getElementById("followup-preview");
+  document.getElementById("followup-preview-meta").textContent =
+    `${lead.name} · ${generatedBy} · ${new Date(lead.followUpSentAt).toLocaleString("fi-FI")}`;
+  document.getElementById("followup-preview-text").textContent = text;
+  previewWrap.hidden = false;
+  previewWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
   renderDashboard();
 });
 
