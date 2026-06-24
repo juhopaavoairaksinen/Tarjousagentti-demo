@@ -106,6 +106,12 @@ textarea { resize: vertical; }
 .btn:disabled { opacity: .55; cursor: progress; }
 .form-hint { font-size: 12px; color: #6B7C78; margin-top: 6px; }
 
+.api-key-field { background: #F8FBFA; border: 1px dashed #CFE3DF; border-radius: 10px; padding: 12px 14px; }
+.api-key-row { display: flex; gap: 8px; }
+.api-key-row input { flex: 1; font-family: 'IBM Plex Mono', monospace; }
+.btn--small { padding: 8px 12px; font-size: 12.5px; white-space: nowrap; }
+.field-note { font-size: 11.5px; color: #6B7C78; font-weight: 400; margin-top: 4px; display: block; }
+
 .agent-panel { display: flex; flex-direction: column; gap: 16px; }
 .receipt {
   font-family: 'IBM Plex Mono', monospace; font-size: 13px; background: #0E3B38; color: #DFF3EF;
@@ -192,8 +198,9 @@ textarea { resize: vertical; }
     <div>
       <b>Mistä tässä on kyse:</b> demo näyttää, miten AI-pohjainen tarjous- ja liidiagentti voisi
       toimia Lempi Kodinhoidolle. Asiakas kertoo kohteen tiedot, agentti laskee hinnan läpinäkyvästi
-      ja kirjoittaa tarjouksen — ja liidit sekä niitä koskevat mittarit (konversio, vasteaika,
-      muistutusten teho) kertyvät automaattisesti alla olevaan näkymään.
+      ja kirjoittaa tarjouksen — halutessasi oikealla Claude-mallilla, jos liität oman API-avaimesi
+      — ja liidit sekä niitä koskevat mittarit (konversio, vasteaika, muistutusten teho) kertyvät
+      automaattisesti alla olevaan näkymään.
     </div>
   </div>
 
@@ -268,6 +275,15 @@ textarea { resize: vertical; }
           <label class="checkbox"><input type="checkbox" name="bringEquipment" checked /><span>Lempi tuo siivousvälineet</span></label>
           <label class="checkbox"><input type="checkbox" name="distantArea" /><span>Kaukopaikkakunta (+30 min)</span></label>
         </div>
+
+        <label class="field api-key-field" id="api-key-field">
+          <span>Claude API-avain (valinnainen — agentti kirjoittaa viestin oikeasti tekoälyllä)</span>
+          <div class="api-key-row">
+            <input type="password" id="api-key-input" name="apiKey" placeholder="sk-ant-…" autocomplete="off" />
+            <button type="button" class="btn btn--ghost btn--small" id="toggle-key-visibility">Näytä</button>
+          </div>
+          <span class="field-note">Avain käytetään suoraan selaimestasi Anthropicin API:in, ei tallenneta minnekään eikä lähetetä muualle. Tyhjänä agentti käyttää valmista mallipohjaa.</span>
+        </label>
 
         <button type="submit" class="btn btn--primary">Luo tarjous</button>
         <p class="form-hint">Hinnat perustuvat Lempin julkiseen hinnastoon (lempi.fi/hinnasto). Tuntimäärä on demoa varten tehty arvio.</p>
@@ -445,6 +461,95 @@ Lempi-tiimi`;
 }
 
 /* =========================================================
+   2b) OIKEA AGENTTIKUTSU — "tuo oma avain" (BYOK), suoraan
+      selaimesta Anthropicin API:in. Avain EI tallennu mihinkään
+      eikä päädy tämän tiedoston/repon koodiin — käyttäjä liittää
+      sen itse lomakkeeseen, ja se elää vain selaimen muistissa
+      sen istunnon ajan. Tämä on Anthropicin itse suosittelema
+      "bring your own key" -malli selainpohjaisille demoille
+      (header: anthropic-dangerous-direct-browser-access).
+   ========================================================= */
+const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_SYSTEM_PROMPT = `Olet Lempi Kodinhoidon avulias myyntiagentti. Lempi on suomalainen
+kotisiivousyritys, jonka arvot ovat ilo, arvostus ja välittäminen, ja jonka tunnuslause on
+"Teemme siivouspäivästä Lempipäivän". Lempi korostaa reilua ja läpinäkyvää hinnoittelua -
+asiakas ei maksa piilokuluista.
+
+Kirjoita lyhyt, lämmin ja konkreettinen suomenkielinen viesti annetun asiakkaan ja valmiiksi
+lasketun hintaerittelyn (tai kartoituskäynti-tilanteen) pohjalta. Älä keksi hintoja tai
+palveluita - käytä vain annettuja lukuja. Käytä sinä-muotoa, vältä kliseitä ja myyntipuhetta,
+ole konkreettinen. Lopeta kevyeen, selkeään kutsuun varata aika. Pituus 80-130 sanaa.
+Allekirjoita "Lempi-tiimi".`;
+
+function liveOfferPrompt(lead) {
+  if (lead.requiresSiteVisit) {
+    return `Asiakas ${lead.name} pyysi tarjousta palvelulle "toimistosiivous", joka vaatii aina
+kartoituskäynnin eikä automaattista hinta-arviota. Kirjoita lyhyt viesti, joka kertoo
+ystävällisesti, että annamme tarkan ja reilun tarjouksen lyhyen kartoituskäynnin tai puhelun
+jälkeen, ja ehdota seuraavaa askelta.`;
+  }
+  const q = lead.quote;
+  return `Asiakas: ${lead.name}, kaupunki ${CITY_LABEL[lead.city] || lead.city}.
+Palvelu: ${lead.service}${lead.frequency ? " (" + lead.frequency + ")" : ""}.
+
+Laskettu hintaerittely:
+- Arvioitu tuntimäärä: ${q.hours} h
+- Tuntihinta: ${euro(q.hourlyRate)}
+- Välinelisä: ${euro(q.equipmentFee)}
+- Hinta yhteensä ennen kotitalousvähennystä: ${euro(q.totalBeforeDeduction)}
+- Hinta kotitalousvähennyksen jälkeen: ${euro(q.totalAfterDeduction)}
+
+Kirjoita tarjousviesti asiakkaalle näiden tietojen pohjalta.`;
+}
+
+async function generateLiveOffer(lead, apiKey) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 500,
+      system: CLAUDE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: liveOfferPrompt(lead) }],
+    }),
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody?.error?.message || `API-virhe (${response.status})`);
+  }
+  const data = await response.json();
+  const textBlock = data.content?.find((b) => b.type === "text");
+  if (!textBlock?.text) throw new Error("Tyhjä vastaus API:lta");
+  return textBlock.text.trim();
+}
+
+// Yhdistää: kokeilee live-kutsua jos avain annettu, palaa mallipohjaan jos ei
+// avainta tai kutsu epäonnistuu. Palauttaa aina { text, generatedBy }.
+async function generateOfferText(lead, apiKey) {
+  if (!apiKey) {
+    return {
+      text: lead.requiresSiteVisit ? fallbackSiteVisit(lead) : fallbackOffer(lead),
+      generatedBy: "Mallipohja (ei API-avainta annettu)",
+    };
+  }
+  try {
+    const text = await generateLiveOffer(lead, apiKey);
+    return { text, generatedBy: `${CLAUDE_MODEL} (live, oma avaimesi)` };
+  } catch (err) {
+    console.error("Live-kutsu epäonnistui, käytetään mallipohjaa:", err);
+    return {
+      text: lead.requiresSiteVisit ? fallbackSiteVisit(lead) : fallbackOffer(lead),
+      generatedBy: `Mallipohja (live-kutsu epäonnistui: ${err.message})`,
+    };
+  }
+}
+
+/* =========================================================
    3) ESIMERKKIDATA — 14 keksittyä liidiä, levitetty viidelle
       viikolle. Kaikki hinnat laskettu yllä olevalla logiikalla.
    ========================================================= */
@@ -583,7 +688,14 @@ function typeWriter(el, text, speed = 14) {
   (function tick() { el.textContent += text[i]; i++; if (i < text.length) setTimeout(tick, speed); })();
 }
 
-form.addEventListener("submit", (e) => {
+const apiKeyInput = document.getElementById("api-key-input");
+document.getElementById("toggle-key-visibility").addEventListener("click", (e) => {
+  const isHidden = apiKeyInput.type === "password";
+  apiKeyInput.type = isHidden ? "text" : "password";
+  e.target.textContent = isHidden ? "Piilota" : "Näytä";
+});
+
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   submitBtn.disabled = true;
   submitBtn.textContent = "Agentti laskee…";
@@ -591,32 +703,35 @@ form.addEventListener("submit", (e) => {
 
   const data = formDataObject();
   const name = form.querySelector('[name="name"]').value || "Asiakas";
+  const apiKey = apiKeyInput.value.trim();
   const quote = calculateQuote(data);
 
-  setTimeout(() => {
-    renderReceipt(quote);
-    submitBtn.textContent = "Agentti kirjoittaa viestiä…";
+  await wait(450);
+  renderReceipt(quote);
+  submitBtn.textContent = apiKey ? "Agentti kirjoittaa viestiä Claude API:lla…" : "Agentti kirjoittaa viestiä…";
 
-    const lead = {
-      id: "demo" + Date.now(), name, city: data.city, service: data.service, frequency: data.frequency,
-      requiresSiteVisit: quote.requiresSiteVisit, quote: quote.requiresSiteVisit ? null : quote,
-      createdAt: new Date().toISOString(), offerSentAt: new Date().toISOString(), followUpSentAt: null,
-      status: quote.requiresSiteVisit ? "ohjattu_kartoitukseen" : "tarjous_lahetetty",
-    };
-    lead.offerText = quote.requiresSiteVisit ? fallbackSiteVisit(lead) : fallbackOffer(lead);
+  const lead = {
+    id: "demo" + Date.now(), name, city: data.city, service: data.service, frequency: data.frequency,
+    requiresSiteVisit: quote.requiresSiteVisit, quote: quote.requiresSiteVisit ? null : quote,
+    createdAt: new Date().toISOString(), offerSentAt: new Date().toISOString(), followUpSentAt: null,
+    status: quote.requiresSiteVisit ? "ohjattu_kartoitukseen" : "tarjous_lahetetty",
+  };
 
-    setTimeout(() => {
-      agentMessageMeta.textContent = `Mallipohja (ei live-API-kutsua) · ${new Date(lead.offerSentAt).toLocaleString("fi-FI")}`;
-      agentMessageWrap.hidden = false;
-      typeWriter(agentMessageText, lead.offerText);
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Luo tarjous";
+  const { text, generatedBy } = await generateOfferText(lead, apiKey);
+  lead.offerText = text;
+  lead.generatedBy = generatedBy;
 
-      LEADS = [lead, ...LEADS];
-      renderDashboard();
-    }, 450);
-  }, 500);
+  agentMessageMeta.textContent = `Kirjoittanut: ${generatedBy} · ${new Date(lead.offerSentAt).toLocaleString("fi-FI")}`;
+  agentMessageWrap.hidden = false;
+  typeWriter(agentMessageText, lead.offerText);
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Luo tarjous";
+
+  LEADS = [lead, ...LEADS];
+  renderDashboard();
 });
+
+function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 /* =========================================================
    6) DASHBOARD — KPI:t, suodatus, taulukko, kaaviot
